@@ -14,7 +14,7 @@ requirejs.config({
 
 require(['underscore', 'game/game'], function (_, Game) {
     var game = new Game({
-        seed : 'bc',
+        seed : window.navigator.userAgent,
         boardEl : $('#game')
     });
     $('#info').on('click', '.command', function () {
