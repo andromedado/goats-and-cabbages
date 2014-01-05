@@ -1,0 +1,12 @@
+
+.game-wrap {
+    height: 500px;
+    border: 1px solid #000;
+    position: relative; }
+
+.info-wrap {
+    height: 10%; }
+
+.game-board {
+    position: absolute; }
+

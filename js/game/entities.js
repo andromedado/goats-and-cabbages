@@ -1,0 +1,472 @@
+
+define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
+    'use strict';
+    var defaultOptions = {
+            facing : util.NorthRadians,//Radians, NORTH
+            facingTolerance : Math.TAU / 1000,
+            beakColor : '#000',
+            releaseConcentrationAfter : 0.2,
+            canMove : false,
+            reach : 0,
+            mass : 1,//kg
+            speed : {
+                turning : Math.TAU / 2//Radians Per Second
+            },
+            vision : {
+                distance : 10,//Meters
+                peripheral : Math.TAU / 5//TAU/8 Radians :: 45degrees, so we have a field of vision 90 degrees wide
+            }
+        },
+        id = 0,
+        distanceTolerance = 0.01;
+
+    function Entity (game, options) {
+        this.game = game;
+        this.entityId = id++;
+        $.extend(true, this, defaultOptions, options || {});
+        _.extend(this, Backbone.Events);
+        this.initialMass = this.mass;
+        this.seed = this.game.random();
+        this.whatIPerceive = [];
+        this.on('eaten', function () {
+            this.remove();
+        });
+    }
+
+    Entity.prototype.remove = function () {
+        this.game.removeEntity(this);
+        this.trigger('gone');
+    };
+
+    Entity.prototype.isEqual = function (toWhat) {
+        return toWhat && this.entityId === toWhat.entityId;
+    };
+
+    Entity.prototype.getPosition = function () {
+        return this.position;
+    };
+
+    /**
+     * Default implementation is to
+     * perform appropriate behaviors until
+     * all time given has been consumed
+     * @param dt
+     */
+    Entity.prototype.update = function (dt) {
+        var i = 0, behavior, left, diff;
+        while (dt > 0 && i++ < 50) {
+            behavior = this.getBehavior();
+            left = this.performBehavior(behavior, dt);
+            diff = dt - left;
+            dt = left;
+            if (this.currentBehavior != behavior) {
+                this.currentBehavior = behavior;
+                this.performingFor = diff;
+                this.behaviorSeed = this.game.random();
+            } else {
+                this.performingFor += diff;
+            }
+        }
+        if (i == 50) {
+            console.log('theres a bug somewhere');
+        }
+    };
+
+    Entity.prototype.getBehavior = function () {
+        return Behavior.Wait;
+    };
+
+    Entity.prototype.performBehavior = function (behavior, dt) {
+        return behavior.do.call(this, dt);
+    };
+
+    Entity.prototype.getDistance = function (otherEntity) {
+        return util.distance(this, otherEntity);
+    };
+
+    Entity.prototype.getInnerDistance = function (what) {
+        var absDistance = this.getDistance(what);
+        absDistance -= this.radius;
+        absDistance -= what.radius || 0;
+        return absDistance;
+    };
+
+    Entity.prototype.occupiesPoint = function (point) {
+        return util.distance(point, this) <= this.radius;
+    };
+
+    Entity.prototype.getXDiff = function (point) {
+        if (point instanceof Entity) {
+            point = point.position;
+        }
+        return  point[0] - this.position[0];
+    };
+
+    Entity.prototype.getYDiff = function (point) {
+        if (point instanceof Entity) {
+            point = point.position;
+        }
+        return  point[1] - this.position[1];
+    };
+
+    Entity.prototype.getRadiansToFace = function (what) {
+        var adjacent = this.getYDiff(what),
+            opposite = this.getXDiff(what),
+            theta = Math.atan(Math.abs(opposite / adjacent));
+        if (opposite > 0) {
+            if (adjacent > 0) {
+                //Quadrant I : NE
+                return util.NorthRadians - theta;
+            } else if (adjacent < 0) {
+                //Quadrant IV : SE
+                return theta + util.SouthRadians;
+            } else {
+                //Quad I/IV Border : East
+                return util.EastRadians;
+            }
+        } else if (opposite < 0) {
+            if (adjacent > 0) {
+                //Quadrant II : NW
+                return theta + util.NorthRadians;
+            } else if (adjacent < 0) {
+                //Quadrant III : SW
+                return util.SouthRadians - theta;
+            } else {
+                //Quad II/III border : West
+                return util.WestRadians;
+            }
+        } else {
+            if (adjacent > 0) {
+                //Quadrant I/II Border : North
+                return util.NorthRadians;
+            } else if (adjacent < 0) {
+                //Quadrant III/IV Border : South
+                return util.SouthRadians;
+            } else {
+                //We're The Same!
+                return this.facing;
+            }
+        }
+    };
+
+    Entity.prototype.faceThis = function (what) {
+        this.facing = this.getRadiansToFace(what);
+        this.concentrating = false;
+    };
+
+    Entity.prototype.isFacing = function (entity) {
+        //console.log(this.getRadianOffset(entity));
+        return Math.abs(this.getRadianOffset(entity)) <= this.facingTolerance;
+    };
+
+    Entity.prototype.getPointAtRadianAndDistance = function (radian, distance) {
+        var x, y;
+        x = distance * Math.cos(radian);
+        y = distance * Math.sin(radian);
+        return [this.position[0] + x, this.position[1] + y];
+    };
+
+    Entity.prototype.getRadianOffset = function (otherEntity) {
+        var radiansToFace;
+        if (otherEntity.getPosition) {
+            radiansToFace = this.getRadiansToFace(otherEntity);
+        } else {
+            radiansToFace = otherEntity;
+        }
+        return util.radiansDiff(radiansToFace, this.facing);
+    };
+
+    Entity.prototype.canSee = function (otherEntity) {
+        if (!(otherEntity instanceof Entity)) {
+            return false;
+        }
+        var distance = this.getInnerDistance(otherEntity);
+        if (distance > this.vision.distance) {
+            return false;
+        }
+        return Math.abs(this.getRadianOffset(otherEntity)) <= this.vision.peripheral;
+    };
+
+    Entity.prototype.canTouch = function (entity) {
+        return this.getTouchDistance(entity) <= distanceTolerance;
+    };
+
+    Entity.prototype.canSmell = function (entity) {
+        return false;
+    };
+
+    Entity.prototype.getTouchDistance = function (entity) {
+        return this.getInnerDistance(entity) - this.reach;
+    };
+
+    Entity.prototype.isTooClose = function (entity) {
+        return this.getInnerDistance(entity) < (-2/5) * this.radius;
+    };
+
+    Entity.prototype.draw = function (board) {
+        var ctx = board.getEntityContext();
+        ctx.beginPath();
+        ctx.arc(board.gameXToCanvasX(this.position[0]), board.gameYToCanvasY(this.position[1]), this.radius * board.pixelsPerMeter, 0, Math.TAU, true);
+        if (this.borderColor) {
+            ctx.strokeStyle = this.borderColor;
+            ctx.stroke();
+        }
+        if (this.color) {
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = this.mass / this.initialMass;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+        ctx.closePath();
+        if (this.showBeak) {
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.strokeStyle = '#000';
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            var fp = this.getPointAtRadianAndDistance(this.facing - (Math.TAU / 4), this.radius);
+            ctx.moveTo(board.gameXToCanvasX(fp[0]), board.gameYToCanvasY(fp[1]));
+            var bp = this.getPointAtRadianAndDistance(this.facing, this.radius * 4 / 3);
+            ctx.lineTo(board.gameXToCanvasX(bp[0]), board.gameYToCanvasY(bp[1]));
+            var sp = this.getPointAtRadianAndDistance(this.facing + (Math.TAU / 4), this.radius);
+            ctx.lineTo(board.gameXToCanvasX(sp[0]), board.gameYToCanvasY(sp[1]));
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over';
+        }
+        if (this.image) {
+            var width, height, x, y;
+            if (this.widthToHeight > 1) {
+                //Taller image
+                height = (this.radius * 2) * board.pixelsPerMeter;
+                width = height / this.widthToHeight;
+                y = board.gameYToCanvasY(this.position[1] + this.radius);
+                x = board.gameXToCanvasX(this.position[0] - (this.radius / this.widthToHeight));
+            } else {
+                //Wider Image
+                width = (this.radius * 2) * board.pixelsPerMeter;
+                height = width * this.widthToHeight;
+                x = board.gameXToCanvasX(this.position[0] - this.radius);
+                y = board.gameYToCanvasY(this.position[1] + (this.radius / this.widthToHeight));
+            }
+            ctx.drawImage(this.image, x, y, width, height);
+        }
+        if (this.highlighted && this.game.debug) {
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.strokeStyle = '#000';
+            ctx.fillStyle = '#FF0';
+            ctx.beginPath();
+            ctx.arc(board.gameXToCanvasX(this.position[0]), board.gameYToCanvasY(this.position[1]), this.radius * board.pixelsPerMeter * 2, 0, Math.TAU, true);
+            ctx.stroke();
+            ctx.fill();
+            ctx.closePath();
+            ctx.globalCompositeOperation = 'source-over';
+        }
+    };
+
+    Entity.Vegetable = (function () {
+        function Vegetable() {
+            Entity.apply(this, arguments);
+            this.speed.walking = 0;
+        }
+
+        Vegetable.prototype = Object.create(Entity.prototype);
+        Vegetable.prototype.constructor = Vegetable;
+
+        return Vegetable;
+    }());
+
+    Entity.Cabbage = (function () {
+        var defaultOptions = {
+            radius : 0.38,
+            density : 1.5 / ((2/3) * Math.TAU * Math.pow(0.38, 3)),//Default 1.5kg
+            borderColor : '#000',
+            color : '#AAFFAA'
+        };
+
+        defaultOptions.image = new Image();
+        defaultOptions.image.src = 'images/bigCabbage2.png';
+        defaultOptions.widthToHeight = 1;
+
+        function Cabbage (game, opts) {
+            $.extend(true, this, defaultOptions, opts || {});
+            this.mass = this.density * ((2/3) * Math.TAU * Math.pow(this.radius, 3));
+            Entity.Vegetable.apply(this, arguments);
+        }
+
+        Cabbage.prototype = Object.create(Entity.Vegetable.prototype);
+        Cabbage.prototype.constructor = Cabbage;
+
+        return Cabbage;
+    }());
+
+    Entity.Animal = (function () {
+        var defaultOptions = {
+            showBeak : true,
+            canMove : true,
+            eatsKgPerSecond : 18 / 60,//3kg per minute
+            foodInStomach : 0//kg
+        };
+
+        function Animal(game, opts) {
+            Entity.apply(this, arguments);
+            $.extend(true, this, defaultOptions, opts || {});
+            this.load();
+            this.speed.walking = 1.7;
+        }
+
+        Animal.prototype = Object.create(Entity.prototype);
+        Animal.prototype.constructor = Animal;
+
+        Animal.prototype.load = function () {
+            var self = this;
+            this.on('interrupt', function () {
+                self.concentrating = false;
+            });
+        };
+
+        Animal.prototype.draw = function (board) {
+            Entity.prototype.draw.apply(this, arguments);
+            if (this.game.debug) {
+                var ctx = board.getEntityContext(),
+                    canvasX = board.gameXToCanvasX(this.position[0]),
+                    canvasY = board.gameYToCanvasY(this.position[1]);
+                ctx.beginPath();
+                var p1 = this.getPointAtRadianAndDistance(this.facing + this.vision.peripheral, this.vision.distance);
+                ctx.moveTo(canvasX, canvasY);
+                var radian1 = -(this.facing - this.vision.peripheral) + Math.TAU;
+                var radian2 = -(this.facing + this.vision.peripheral) + Math.TAU;
+                ctx.arc(canvasX, canvasY, this.vision.distance * board.pixelsPerMeter, radian1, radian2, true);
+                ctx.closePath();
+                ctx.stroke();
+                return;
+            }
+        };
+
+        Animal.prototype.canEat = function (entity) {
+            return entity instanceof Entity.Vegetable;
+        };
+
+        Animal.prototype.getFoodDesirability = function (entity, minDistance) {
+            return minDistance / this.getDistance(entity);
+        };
+
+        Animal.prototype.update = function (dt) {
+            var self = this,
+                entitiesNear = this.game.getEntitiesWithin(this.vision.distance, this);
+            this.whatIPerceive = [];
+            _.each(entitiesNear, function (entity) {
+                if (self.canSee(entity) || self.canSmell(entity) || self.canTouch(entity)) {
+                    self.whatIPerceive.push(entity);
+                }
+            });
+            Entity.prototype.update.apply(this, arguments);
+        };
+
+        Animal.prototype.getBestVisibleFood = function () {
+            var self = this,
+                minDistance,
+                food = [];
+            _.each(this.whatIPerceive, function (entity) {
+                if (self.canEat(entity)) {
+                    food.push(entity);
+                    minDistance = Math.min(minDistance || self.getDistance(entity), self.getDistance(entity));
+                }
+            });
+            food.sort(function (a, b) {
+                var aDesirability = self.getFoodDesirability(a, minDistance),
+                    bDesirability = self.getFoodDesirability(b, minDistance);
+                if (aDesirability == bDesirability) {
+                    return 0;
+                }
+                return aDesirability < bDesirability ? 1 : -1;
+            });
+            return food.shift();
+        };
+
+        Animal.prototype.getBehavior = function () {
+            var self = this;
+            if (this.concentrating && this.currentBehavior != Behavior.Panic) {
+                return this.currentBehavior;
+            }
+            this.destinationEntity = null;
+            this.panicReason = '';
+            //Priorities:
+            //Eating
+            //Why can't I do that?
+            var food = this.getBestVisibleFood();
+            if (!food) {
+                return Behavior.Search.ForFood;
+            }
+            this.concentrating = true;
+            this.listenToOnce(food, 'gone', function () {
+                self.concentrating = false;
+                self.stopListening(food);
+            });
+            //food.highlighted = true;
+            if (this.destinationEntity != food) {
+                this.destinationEntity = food;
+                this.listenTo(food, 'interrupt', function () {
+                    self.concentrating = false;
+                });
+            }
+            if (!this.isFacing(food)) {
+                if (this.canMove) {
+                    if (this.isTooClose(food)) {
+                        this.concentrating = false;
+                        return Behavior.TurnAndBackup;
+                    }
+                    return Behavior.TurnAndApproach;
+                }
+                return Behavior.Turn;
+            }
+            if (!this.canTouch(food)) {
+                if (this.canMove) {
+                    return Behavior.Approach;
+                }
+                this.panicReason = 'I can\'t touch it and I can\'t move!';
+                return Behavior.Panic;
+            }
+            if (this.isTooClose(food)) {
+                if (this.canMove) {
+                    this.concentrating = false;
+                    return Behavior.Backup;
+                }
+                this.panicReason = 'I\'m too close and can\'t move!';
+                return Behavior.Panic;
+            }
+            return Behavior.EatNearestEdible;
+        };
+
+        return Animal;
+    }());
+
+    Entity.Goat = (function () {
+        var defaultOptions = {
+            radius : 0.55,
+            borderColor : '#000',
+            reach : -0.01,
+            color : '#BBBBAA',
+            vision : {
+                distance : 20,//Meters
+                peripheral : Math.TAU / 8//Radians :: 45degrees, so we have a field of vision 90 degrees wide
+            }
+        };
+
+        defaultOptions.image = new Image();
+        defaultOptions.image.src = 'images/bigGoat.png';
+        defaultOptions.widthToHeight = (299 / 255);
+
+        function Goat (game, opts) {
+            $.extend(true, this, defaultOptions, opts || {});
+            Entity.Animal.apply(this, arguments);
+            this.speed.walking = 1;
+        }
+
+        Goat.prototype = Object.create(Entity.Animal.prototype);
+        Goat.prototype.constructor = Goat;
+
+        return Goat;
+    }());
+
+    return Entity;
+});
+
