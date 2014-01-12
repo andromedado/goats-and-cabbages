@@ -8,69 +8,73 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
     }, 1000);
 
     function Behavior (doFn) {
-        this.do = doFn;
+        this._doFn = doFn;
     }
+
+    Behavior.prototype['do'] = function (entity, dt) {
+        this._doFn(entity, dt);
+    };
 
     function doAllOfThese (self, dt, behavior/*[, behavior...]*/) {
         var behaviors = Array.prototype.slice.call(arguments, 2),
             leftover;
         _.each(behaviors, function (behavior) {
-            var left = behavior.do.call(self, dt);
+            var left = behavior.do(self, dt);
             leftover = (leftover && Math.min(leftover, left)) || left;
         });
         return leftover;
     }
 
-    Behavior.Wait = new Behavior(function (dt) {
+    Behavior.Wait = new Behavior(function (entity, dt) {
         return 0;//Eat up all time and do nothing
     });
 
-    Behavior.Backup = new Behavior(function (dt) {
-        var backupModifier = this.speed.backupModifier || 0.5;
-        var canTravelDistance = dt * this.speed.walking * backupModifier;
-        this.position = this.getPointAtRadianAndDistance(util.invertRadians(this.facing), canTravelDistance);
+    Behavior.Backup = new Behavior(function (entity, dt) {
+        var backupModifier = entity.speed.backupModifier || 0.5;
+        var canTravelDistance = dt * entity.speed.walking * backupModifier;
+        entity.position = entity.getPointAtRadianAndDistance(util.invertRadians(entity.facing), canTravelDistance);
         return 0;
     });
 
-    Behavior.Turn = new Behavior(function turn (dt) {
-        var diff = this.getRadianOffset(this.destinationEntity),
-            canTurn = this.speed.turning * dt;
+    Behavior.Turn = new Behavior(function turn (entity, dt) {
+        var diff = entity.getRadianOffset(entity.destinationEntity),
+            canTurn = entity.speed.turning * dt;
         if (canTurn >= Math.abs(diff)) {
-            this.facing = this.getRadiansToFace(this.destinationEntity);
-            this.concentrating = false;
-            return dt - (Math.abs(diff) / this.speed.turning);
+            entity.facing = entity.getRadiansToFace(entity.destinationEntity);
+            entity.concentrating = false;
+            return dt - (Math.abs(diff) / entity.speed.turning);
         }
-        this.facing += canTurn * (diff < 0 ? -1 : 1);
+        entity.facing += canTurn * (diff < 0 ? -1 : 1);
         return 0;
     });
 
-    Behavior.TurnAndBackup = new Behavior(function turnAndBackup (dt) {
-        return doAllOfThese(this, dt, Behavior.Backup, Behavior.Turn);
+    Behavior.TurnAndBackup = new Behavior(function turnAndBackup (entity, dt) {
+        return doAllOfThese(entity, dt, Behavior.Backup, Behavior.Turn);
     });
 
-    Behavior.HalfSpeedTurn = new Behavior(function halfSpeedTurn (dt) {
-        var diff = this.getRadianOffset(this.destinationEntity),
-            canTurn = this.speed.turning * dt / 2;
+    Behavior.HalfSpeedTurn = new Behavior(function halfSpeedTurn (entity, dt) {
+        var diff = entity.getRadianOffset(entity.destinationEntity),
+            canTurn = entity.speed.turning * dt / 2;
         if (canTurn >= Math.abs(diff)) {
-            this.facing = this.getRadiansToFace(this.destinationEntity);
-            this.concentrating = false;
-            return dt - (Math.abs(diff) / (this.speed.turning / 2));
+            entity.facing = entity.getRadiansToFace(entity.destinationEntity);
+            entity.concentrating = false;
+            return dt - (Math.abs(diff) / (entity.speed.turning / 2));
         }
-        this.facing += canTurn * (diff < 0 ? -1 : 1);
+        entity.facing += canTurn * (diff < 0 ? -1 : 1);
         return 0;
     });
 
-    Behavior.TurnAndApproach = new Behavior(function turnAndApproach(dt) {
-        return doAllOfThese(this, dt, Behavior.Turn, Behavior.Approach);
+    Behavior.TurnAndApproach = new Behavior(function turnAndApproach(entity, dt) {
+        return doAllOfThese(entity, dt, Behavior.Turn, Behavior.Approach);
     });
 
-    Behavior.Approach = new Behavior(function approach (dt) {
-        if (this.speed.walking <= 0) {
-            throw {msg : 'invalid walking speed!', what : this};
+    Behavior.Approach = new Behavior(function approach (entity, dt) {
+        if (entity.speed.walking <= 0) {
+            throw {msg : 'invalid walking speed!', what : entity};
         }
-        var touchDistance = this.getTouchDistance(this.destinationEntity),
-            canTravelDistance = dt * this.speed.walking,
-            rads = this.getRadiansToFace(this.destinationEntity),
+        var touchDistance = entity.getTouchDistance(entity.destinationEntity),
+            canTravelDistance = dt * entity.speed.walking,
+            rads = entity.getRadiansToFace(entity.destinationEntity),
             x, y;
         if (touchDistance < 0) {
             //We're here!
@@ -79,73 +83,63 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         if (canTravelDistance >= Math.abs(touchDistance)) {
             x = touchDistance * (Math.cos(rads));
             y = touchDistance * (Math.sin(rads));
-            this.position = [x + this.position[0], y + this.position[1]];
-            this.concentrating = false;
-            return dt - (Math.abs(touchDistance) / this.speed.walking);
+            entity.position = [x + entity.position[0], y + entity.position[1]];
+            entity.concentrating = false;
+            return dt - (Math.abs(touchDistance) / entity.speed.walking);
         }
         x = canTravelDistance * (Math.cos(rads));
         y = canTravelDistance * (Math.sin(rads));
-        this.position = [x + this.position[0], y + this.position[1]];
+        entity.position = [x + entity.position[0], y + entity.position[1]];
         return 0;
     });
 
-    Behavior.EatNearestEdible = new Behavior(function eatNearestEdible (dt) {
-        var canEat = dt * this.eatsKgPerSecond;
-        if (canEat >= this.destinationEntity.mass) {
-            var willEat = this.destinationEntity.mass;
-            this.foodInStomach += willEat;
-            this.destinationEntity.mass = 0;
-            //this.concentrating = false;//Eater is responsible for listening for `eaten`/`gone`
-            this.destinationEntity.trigger('eaten', {by : this});
-            return dt - (willEat / this.eatsKgPerSecond)
+    Behavior.EatNearestEdible = new Behavior(function eatNearestEdible (entity, dt) {
+        var canEat = dt * entity.eatsKgPerSecond;
+        if (canEat >= entity.destinationEntity.mass) {
+            var willEat = entity.destinationEntity.mass;
+            entity.foodInStomach += willEat;
+            entity.destinationEntity.mass = 0;
+            //entity.concentrating = false;//Eater is responsible for listening for `eaten`/`gone`
+            entity.destinationEntity.trigger('eaten', {by : entity});
+            return dt - (willEat / entity.eatsKgPerSecond);
         }
-        this.destinationEntity.mass -= canEat;
-        this.foodInStomach += canEat;
+        entity.destinationEntity.mass -= canEat;
+        entity.foodInStomach += canEat;
         return 0;
     });
 
-    Behavior.Panic = new Behavior(function (dt) {
+    Behavior.Panic = new Behavior(function (entity, dt) {
         //Panic!!
-        announcePanic(this);
+        announcePanic(entity);
         return 0;
     });
 
-    Behavior.Search = function (doFn) {
-        this._do = doFn;
-        this['do'] = function baseSearchDo (dt) {
-            return doFn.apply(this, arguments);
-        };
-        /*
-         if (this.performingFor % this.releaseConcentrationAfter > (this.performingFor + dt) % this.releaseConcentrationAfter) {
-         this.concentrating = false;
-         }
-         */
-    };
+    Behavior.Search = {};
 
-    Behavior.Search.ForFood = new Behavior.Search(function forFood (dt) {
+    Behavior.Search.ForFood = new Behavior(function forFood (entity, dt) {
         var clockwise;
 
-        clockwise = this.behaviorSeed > 0.5;
+        clockwise = entity.behaviorSeed > 0.5;
         var atLeastRadians = Math.PI - (Math.TAU / 16);
         var mostRadians = Math.PI + (Math.TAU / 16);
-        var flipAtRadians = this.game.randBetween(atLeastRadians, mostRadians, this.behaviorSeed);
-        var secondsBeforeFlipping = flipAtRadians / (this.speed.turning / 2);
-        var flip = (this.performingFor % secondsBeforeFlipping) != (this.performingFor % (secondsBeforeFlipping * 2));
+        var flipAtRadians = entity.game.randBetween(atLeastRadians, mostRadians, entity.behaviorSeed);
+        var secondsBeforeFlipping = flipAtRadians / (entity.speed.turning / 2);
+        var flip = (entity.performingFor % secondsBeforeFlipping) != (entity.performingFor % (secondsBeforeFlipping * 2));
 
         if (flip) {
             clockwise = !clockwise;
         }
         var destinationRadians;
         if (clockwise) {
-            destinationRadians = this.facing - Math.TAU / 4;
+            destinationRadians = entity.facing - Math.TAU / 4;
         } else {
-            destinationRadians = this.facing + Math.TAU / 4;
+            destinationRadians = entity.facing + Math.TAU / 4;
         }
-        this.destinationEntity = this.getPointAtRadianAndDistance(destinationRadians, this.radius * 5);
-        Behavior.HalfSpeedTurn.do.call(this, dt);
-        var canTravelDistance = dt * this.speed.walking;
-        this.destinationEntity = this.getPointAtRadianAndDistance(this.facing, canTravelDistance * 2 + this.radius + this.reach);
-        Behavior.Approach.do.call(this, dt);
+        entity.destinationEntity = entity.getPointAtRadianAndDistance(destinationRadians, entity.radius * 5);
+        Behavior.HalfSpeedTurn.do(entity, dt);
+        var canTravelDistance = dt * entity.speed.walking;
+        entity.destinationEntity = entity.getPointAtRadianAndDistance(entity.facing, canTravelDistance * 2 + entity.radius);
+        Behavior.Approach.do(entity, dt);
         return 0;
     });
 

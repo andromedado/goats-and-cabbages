@@ -7,7 +7,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
             beakColor : '#000',
             releaseConcentrationAfter : 0.2,
             canMove : false,
-            reach : 0,
+            //reach : 0,
             mass : 1,//kg
             speed : {
                 turning : Math.TAU / 2//Radians Per Second
@@ -77,7 +77,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
     };
 
     Entity.prototype.performBehavior = function (behavior, dt) {
-        return behavior.do.call(this, dt);
+        return behavior.do(this, dt);
     };
 
     Entity.prototype.getDistance = function (otherEntity) {
@@ -188,7 +188,9 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
     };
 
     Entity.prototype.canTouch = function (entity) {
-        return this.getTouchDistance(entity) <= distanceTolerance;
+        //return this.getTouchDistance(entity) <= distanceTolerance;//There is an optimized version of this
+        var oRadis = entity.radius || 0;
+        return Math.pow(this.getXDiff(entity), 2) + Math.pow(this.getYDiff(entity), 2) <= Math.pow(this.radius + oRadis, 2) + distanceTolerance;
     };
 
     Entity.prototype.canSmell = function (entity) {
@@ -196,7 +198,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
     };
 
     Entity.prototype.getTouchDistance = function (entity) {
-        return this.getInnerDistance(entity) - this.reach;
+        return this.getInnerDistance(entity);// - this.reach;
     };
 
     Entity.prototype.isTooClose = function (entity) {
@@ -443,7 +445,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
         var defaultOptions = {
             radius : 0.55,
             borderColor : '#000',
-            reach : -0.01,
+            //reach : -0.01,
             color : '#BBBBAA',
             vision : {
                 distance : 20,//Meters

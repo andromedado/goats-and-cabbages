@@ -23,12 +23,15 @@ define(['jquery'], function () {
         this.resize();
     };
 
-    Board.prototype.getPixelDimensions = function () {
-        return [this.$el.width(), this.$el.height()];
+    Board.prototype.getPixelDimensions = function (bypassCache) {
+        if (!this._pixelDimensions || bypassCache) {
+            this._pixelDimensions = [this.$el.width(), this.$el.height()];
+        }
+        return this._pixelDimensions;
     };
 
     Board.prototype.resize = function () {
-        var dimensions = this.getPixelDimensions();
+        var dimensions = this.getPixelDimensions(true);
         _.each(this.canvases, function (canvas) {
             $(canvas).attr({
                 width : dimensions[0],
@@ -39,10 +42,12 @@ define(['jquery'], function () {
     };
 
     Board.prototype.windowXtoCanvasX = function (x) {
+        console.log('expensive!');
         return x - $(this.canvases[0]).offset().left;
     };
 
     Board.prototype.windowYtoCanvasY = function (y) {
+        console.log('expensive!');
         return y - $(this.canvases[0]).offset().top;
     };
 
