@@ -109,6 +109,12 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
         return  point[1] - this.position[1];
     };
 
+    /**
+     * What is the radians I would need to be facing
+     * in order to face the given point/entity
+     * @param what
+     * @returns {*}
+     */
     Entity.prototype.getRadiansToFace = function (what) {
         var adjacent = this.getYDiff(what),
             opposite = this.getXDiff(what),
@@ -149,6 +155,18 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
         }
     };
 
+    Entity.prototype.canShove = function (entity) {
+        return false;
+    };
+
+    Entity.prototype.shove = function (otherEntity, distance, radians) {
+        if (!this.canShove(otherEntity)) {
+            return;
+        }
+        otherEntity.position = otherEntity.getPointAtRadianAndDistance(radians, distance);
+        //Other Entity should now dislike me now!, at least a little
+    };
+
     Entity.prototype.faceThis = function (what) {
         this.facing = this.getRadiansToFace(what);
         this.concentrating = false;
@@ -166,6 +184,12 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
         return [this.position[0] + x, this.position[1] + y];
     };
 
+    /**
+     * What's the difference between the radians to face the given entity,
+     * and the direction that I am already facing?
+     * @param otherEntity
+     * @returns {*}
+     */
     Entity.prototype.getRadianOffset = function (otherEntity) {
         var radiansToFace;
         if (otherEntity.getPosition) {
@@ -318,6 +342,10 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
         Animal.prototype = Object.create(Entity.prototype);
         Animal.prototype.constructor = Animal;
 
+        Animal.prototype.canShove = function (entity) {
+            return true;
+        };
+
         Animal.prototype.load = function () {
             var self = this;
             this.on('interrupt', function () {
@@ -355,9 +383,14 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
             var self = this,
                 entitiesNear = this.game.getEntitiesWithin(this.vision.distance, this);
             this.whatIPerceive = [];
+            this.whatIAmTouching = [];
             _.each(entitiesNear, function (entity) {
-                if (self.canSee(entity) || self.canSmell(entity) || self.canTouch(entity)) {
+                var canTouch = self.canTouch(entity);
+                if (canTouch || self.canSee(entity) || self.canSmell(entity)) {
                     self.whatIPerceive.push(entity);
+                    if (canTouch) {
+                        self.whatIAmTouching.push(entity);
+                    }
                 }
             });
             Entity.prototype.update.apply(this, arguments);
@@ -394,6 +427,12 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
             //Priorities:
             //Eating
             //Why can't I do that?
+            this.entitiesToStepAwayFrom = [];
+            _.each(this.whatIAmTouching, function (entity) {
+                if (entity instanceof Animal) {
+                    self.entitiesToStepAwayFrom.push(entity);
+                }
+            });
             var food = this.getBestVisibleFood();
             if (!food) {
                 return Behavior.Search.ForFood;

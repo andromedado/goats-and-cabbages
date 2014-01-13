@@ -39,6 +39,15 @@ define({
             return 0;
         }
     },
+    pointsAreWithinXMeters : function (point1, point2, meters) {
+        if (point1.getPosition) {
+            point1 = point1.getPosition();
+        }
+        if (point2.getPosition) {
+            point2 = point2.getPosition();
+        }
+        return Math.pow(point1[0] - point2[0], 2) + Math.pow(point1[1] - point2[0], 2) <= Math.pow(meters, 2);
+    },
     radiansDiff : function (a, b) {
         var diff = a - b;
         while (diff > Math.PI) {

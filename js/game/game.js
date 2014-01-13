@@ -309,8 +309,14 @@ define([
     Game.prototype.getEntitiesWithin = function (meters, ofEntity) {
         var entities = [];
         _.each(this.entities, function (ent) {
-            if (!ent.isEqual(ofEntity) && util.distance(ent, ofEntity) <= meters) {
-                entities.push(ent);
+            if (!ent.isEqual(ofEntity)) {
+                if (util.pointsAreWithinXMeters(ent, ofEntity, meters)) {
+                    entities.push(ent);
+                }
+                //This can be done without square-rooting
+//                if (util.distance(ent, ofEntity) <= meters) {
+//                    entities.push(ent);
+//                }
             }
         });
         return entities;

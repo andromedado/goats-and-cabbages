@@ -33,6 +33,19 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         var backupModifier = entity.speed.backupModifier || 0.5;
         var canTravelDistance = dt * entity.speed.walking * backupModifier;
         entity.position = entity.getPointAtRadianAndDistance(util.invertRadians(entity.facing), canTravelDistance);
+        _.each(entity.entitiesToStepAwayFrom, function (avoidEntity) {
+            var radianPos = entity.getRadiansToFace(avoidEntity),
+                radialDiff = Math.abs(util.radiansDiff(radianPos, entity.facing));
+            if (entity.canShove(avoidEntity)) {
+                if (radialDiff > Math.TAU / 4) {
+                    //If you're not in front of me
+                    var shoveForcePercentage = Math.abs(Math.cos(radialDiff));//1 = FULL Shove, 0 = Nothing
+                    entity.shove(avoidEntity, shoveForcePercentage * canTravelDistance, radianPos);
+                }
+            } else {
+                //Ergh.. what to do here?
+            }
+        });
         return 0;
     });
 

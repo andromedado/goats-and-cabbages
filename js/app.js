@@ -22,6 +22,7 @@ require(['underscore', 'game/game'], function (_, Game) {
     });
     game.randEntities();
     game.draw();
+    window.game = game;
 });
 
 
