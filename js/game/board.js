@@ -1,5 +1,5 @@
 
-define(['jquery'], function () {
+define(['jquery'], function ($) {
     'use strict';
     var defaultOptions = {
         pixelsPerMeter : 40,
@@ -42,12 +42,10 @@ define(['jquery'], function () {
     };
 
     Board.prototype.windowXtoCanvasX = function (x) {
-        console.log('expensive!');
         return x - $(this.canvases[0]).offset().left;
     };
 
     Board.prototype.windowYtoCanvasY = function (y) {
-        console.log('expensive!');
         return y - $(this.canvases[0]).offset().top;
     };
 
@@ -153,9 +151,25 @@ define(['jquery'], function () {
         return this.entityContext;
     };
 
+    Board.prototype.getBackgroundContext = function () {
+        if (!this.bgContext) {
+            this.bgContext = this.bgCanvas.getContext('2d');
+            this.bgContext.translate.apply(this.bgContext, baseTranslation);
+        }
+        return this.bgContext;
+    };
+
     Board.prototype.clear = function () {
         var bounds = this.getPixelDimensions();
         this.getEntityContext().clearRect(0, 0, bounds[0], bounds[1]);
+    };
+
+    /**
+     * Used to compare against to see if we're looking at the same bounds/zoom
+     * @returns {string}
+     */
+    Board.prototype.getBoundsHash = function () {
+        return this.center[0] + ':' + this.center[1] + ':' + this.pixelsPerMeter;
     };
 
     return Board;

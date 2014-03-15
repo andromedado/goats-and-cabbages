@@ -25,6 +25,18 @@ define({
     NorthRadians : Math.TAU / 4,
     SouthRadians : Math.TAU * 3 / 4,
     WestRadians : Math.TAU / 2,
+    mkRandomFn : function (ini) {
+        var seed = 0, l;
+        ini = String(ini || Math.random());
+        l = ini.length;
+        for (var i = 0; i < l; i++) {
+            seed += Math.tan(ini.charCodeAt(i) + seed);
+        }
+        return function () {
+            var x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        };
+    },
     distance : function (point1, point2) {
         if (point1.getPosition) {
             point1 = point1.getPosition();

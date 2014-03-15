@@ -3,8 +3,9 @@ define([
     'jquery', 'underscore',
     'backbone', 'game/util',
     'game/board', 'game/entities',
-    'game/behaviors'
-], function ($, _, Backbone, util, Board, Entity, Behavior) {
+    'game/behaviors', 'game/terrain',
+    'game/storage'
+], function ($, _, Backbone, util, Board, Entity, Behavior, Terrain, Storage) {
     'use strict';
     var defaultOptions = {};
 
@@ -12,23 +13,12 @@ define([
         var self = this;
         $.extend(this, defaultOptions, {seed : Math.random()}, opts || {});
 
-        (function () {
-            var seed = 0, l;
-            self.seed = String(self.seed);
-            l = self.seed.length;
-            for (var i = 0; i < l; i++) {
-                seed += self.seed.charCodeAt(i);
-            }
-            self.random = function () {
-                var x = Math.sin(seed++) * 10000;
-                return x - Math.floor(x);
-            };
-        }());
+        self.random = util.mkRandomFn(self.seed);
 
         this.load();
         this.going = false;
 
-        (function () {
+        (function kickOffMainLoop () {
             var lastTime = Date.now();
             (function main() {
                 var now = Date.now();
@@ -61,6 +51,8 @@ define([
     Game.prototype.load = function () {
         var self = this;
         this.board = new Board(this.boardEl, this.boardOptions);
+        this.terrain = new Terrain(this);
+        this.storage = new Storage(this);
         $(window).resize(function (e) {
             if (!e.isTrigger) {
                 self.resize();
@@ -163,7 +155,7 @@ define([
 
     Game.prototype.toggleDebug = function () {
         this.debug = !this.debug;
-        this.draw();
+        this.draw(true);
     };
 
     Game.prototype.getHighlightedEntities = function () {
@@ -218,6 +210,25 @@ define([
         this.until = function () {
             return true;
         };//only go once
+    };
+
+    Game.prototype.draw = function (force) {
+        var self = this,
+            boardBoundsHash = this.board.getBoundsHash();
+
+        self.board.clear();
+        if (force || this.lastDrawnBoundsHash !== boardBoundsHash) {
+            this.terrain.draw();
+        }
+        _.each(this.entities, function (entity) {
+            if (self.onScreen(entity)) {
+                entity.draw(self.board);
+            }
+        });
+        if (this.debug) {
+            this.board.drawDebug();
+        }
+        this.lastDrawnBoundsHash = boardBoundsHash;
     };
 
     Game.prototype.zoomOut = function () {
@@ -286,19 +297,6 @@ define([
 
     Game.prototype.onScreen = function (point) {
         return util.pointWithinBounds(point, this.board.getVisibleBounds());
-    };
-
-    Game.prototype.draw = function () {
-        var self = this;
-        self.board.clear();
-        _.each(this.entities, function (entity) {
-            if (self.onScreen(entity)) {
-                entity.draw(self.board);
-            }
-        });
-        if (this.debug) {
-            this.board.drawDebug();
-        }
     };
 
     Game.prototype.resize = _.debounce(function () {
