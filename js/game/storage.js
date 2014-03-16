@@ -1,9 +1,11 @@
 
 define(['jquery', 'game/util'], function ($, util) {
     'use strict';
+    var version = '0.0.6',
+        storageKey = 'gameStorage';
 
     function Storage (game) {
-        var data = {},
+        var data = JSON.parse(localStorage.getItem(storageKey) || '{}'),
             self = this;
 
         this.game = game;
@@ -20,11 +22,28 @@ define(['jquery', 'game/util'], function ($, util) {
             }
             //else return undefined
         };
+        function commit () {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(data));
+            } catch (e) {
+                clearInterval(self.commitInterval);
+                console.log(e, 'caused storage failure');
+            }
+        }
+        this.commitInterval = setInterval(commit, 2000);
+        this.commit = commit;
+        this.clear = function () {
+            data = {};
+            commit();
+        };
     }
 
     Storage.prototype.mutateKey = function (key) {
         if (!this.prefix) {
-            this.prefix = Math.ceil(this.game.random() * Math.pow(10, 5));
+            this.prefix = [
+                version,
+                Math.ceil(this.game.random() * Math.pow(10, 5))
+            ].join(':');
         }
         return this.prefix + ':' + key;
     };

@@ -49,6 +49,10 @@ define(['jquery'], function ($) {
         return y - $(this.canvases[0]).offset().top;
     };
 
+    Board.prototype.gamePosToCanvasPos = function (pos) {
+        return [this.gameXToCanvasX(pos[0]), this.gameYToCanvasY(pos[1])];
+    };
+
     Board.prototype.windowXToGameX = function (x) {
         return this.canvasXToGameX(this.windowXtoCanvasX(x));
     };
@@ -154,7 +158,6 @@ define(['jquery'], function ($) {
     Board.prototype.getBackgroundContext = function () {
         if (!this.bgContext) {
             this.bgContext = this.bgCanvas.getContext('2d');
-            this.bgContext.translate.apply(this.bgContext, baseTranslation);
         }
         return this.bgContext;
     };

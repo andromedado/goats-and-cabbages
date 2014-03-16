@@ -7,7 +7,8 @@ define([
     'game/storage'
 ], function ($, _, Backbone, util, Board, Entity, Behavior, Terrain, Storage) {
     'use strict';
-    var defaultOptions = {};
+    var defaultOptions = {},
+        storageKey = 'theGame';
 
     function Game (opts) {
         var self = this;
@@ -15,8 +16,7 @@ define([
 
         self.random = util.mkRandomFn(self.seed);
 
-        this.load();
-        this.going = false;
+        this.init();
 
         (function kickOffMainLoop () {
             var lastTime = Date.now();
@@ -48,7 +48,7 @@ define([
         return false;
     };
 
-    Game.prototype.load = function () {
+    Game.prototype.init = function () {
         var self = this;
         this.board = new Board(this.boardEl, this.boardOptions);
         this.terrain = new Terrain(this);
@@ -71,6 +71,32 @@ define([
                 self.gameMouseUp(e);
             });
         this.gameTime = 0;
+        this.load();
+    };
+
+    Game.prototype.load = function () {
+        this.loadFromJSON(this.storage.get(storageKey) || {});
+    };
+
+    Game.prototype.save = function () {
+        this.storage.set(storageKey, this);
+    };
+
+    Game.prototype.toJSON = function () {
+        return {
+            debug : this.debug,
+            going : this.going
+        };
+    };
+
+    Game.prototype.loadFromJSON = function (obj) {
+        this.debug = obj.debug;
+        this.going = obj.going;
+    };
+
+    Game.prototype.clearStorageAndReload = function () {
+        this.storage.clear();
+        window.location = window.location;
     };
 
     Game.prototype.followIt = function () {
@@ -133,7 +159,10 @@ define([
     Game.prototype.gameClick = function (e) {
         var gameClickPos = [this.board.windowXToGameX(e.pageX), this.board.windowYToGameY(e.pageY)],
             self = this,
-            entities = this.getEntitiesAtPoint(gameClickPos);
+            entities = this.getEntitiesAtPoint(gameClickPos),
+            tile = this.terrain.getTileAtPosition(gameClickPos);
+        this.clickedTile = tile;
+        console.log(tile);
         if (entities.length) {
             _.each(entities, function (entity) {
                 entity.highlighted = !entity.highlighted;
@@ -155,6 +184,7 @@ define([
 
     Game.prototype.toggleDebug = function () {
         this.debug = !this.debug;
+        this.save();
         this.draw(true);
     };
 
