@@ -15,15 +15,15 @@ define([
         this.random = util.mkRandomFn(this.game.seed + 'terrain');
         this.minColorValue = 0.8;
         this.maxColorValue = 1;
-        this.changeAversionExponent = 3;//Higher means less likely to change
+        this.changeAversionExponent = 1;//Higher means less likely to change
         this.minColorSaturation = 0.2;
         this.maxColorSaturation = 0.3;
         this.maxHue = 10;//red/orange
         this.minHue = 230;//blue
-        this.baseTileWidth = 2;//meters
+        this.baseTileWidth = 0.2;//meters
         this.maxElevation = 1500;//Mountain
         this.minElevation = -700;//Ocean
-        this.maximumChangePerTile = 400;
+        this.maximumChangePerTile = this.maxElevation - this.minElevation;
         this.averageElevation = 300;
         this.averageWeight = 0.75;
         var baseInitial = this.game.randBetween(this.minElevation, this.maxElevation, this.random());
@@ -161,6 +161,9 @@ define([
         var tiles = this.getVisibleTiles();
         _.each(tiles, function (tile) {
             tile.draw();
+        });
+        _.each(tiles, function (tile) {
+            tile.draw2();
         });
         if (this.game.debug) {
             _.each(tiles, function (tile) {
