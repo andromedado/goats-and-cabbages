@@ -1,5 +1,5 @@
 
-define(['jquery'], function ($) {
+define(['jquery', 'views/EntityInfo'], function ($, EntityInfo) {
     'use strict';
     var defaultOptions = {
         pixelsPerMeter : 40,
@@ -16,11 +16,22 @@ define(['jquery'], function ($) {
 
     Board.prototype.load = function() {
         var self = this;
+        this.entityInfo = new EntityInfo();
+        self.$el.append(this.entityInfo.$el);
         this.createCanvases();
         _.each(this.canvases, function (canvas) {
             $(canvas).addClass('game-board').appendTo(self.$el);
         });
         this.resize();
+    };
+
+    Board.prototype.showInfo = function (entity) {
+        this.entityInfo.model = entity;
+        this.entityInfo.render().$el.show();
+    };
+
+    Board.prototype.hideInfo = function () {
+        this.entityInfo.$el.hide();
     };
 
     Board.prototype.getPixelDimensions = function (bypassCache) {

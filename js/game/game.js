@@ -62,6 +62,7 @@ define([
             });
         this.entities = [];
         this.dragging = {};
+        this.mightDrag = {};
         this.$topCanvas = $(this.board.getTopCanvas());
         this.$topCanvas.on('click', function (e) {
             self.gameClick(e);
@@ -117,13 +118,16 @@ define([
     Game.prototype.gameMouseDown = function (e) {
         var gameX = this.board.windowXToGameX(e.pageX),
             gameY = this.board.windowYToGameY(e.pageY);
-        this.dragging = {
+        this.mightDrag = {
             entity : this.getEntitiesAtPoint([gameX, gameY])[0]
         };
-        if (this.dragging.entity) {
-            this.dragging.couldMove = this.dragging.entity.canMove;
-            this.dragging.entity.canMove = false;
-            this.dragging.offset = [gameX - this.dragging.entity.position[0], gameY - this.dragging.entity.position[1]];
+        this.dragging = {
+            entity : void 0
+        };
+        if (this.mightDrag.entity) {
+            this.mightDrag.couldMove = this.mightDrag.entity.canMove;
+            this.mightDrag.entity.canMove = false;
+            this.mightDrag.offset = [gameX - this.mightDrag.entity.position[0], gameY - this.mightDrag.entity.position[1]];
         } else {
             this.dragging.offset = [gameX, gameY];
         }
@@ -133,6 +137,10 @@ define([
 //        Not Currently Needed
 //        this.mouseWindowX = e.pageX;
 //        this.mouseWindowY = e.pageY;
+        if (this.mightDrag.entity) {
+            this.dragging = this.mightDrag;
+            this.mightDrag = {};
+        }
         if (this.dragging.hasOwnProperty('entity')) {
             var gameX = this.board.windowXToGameX(e.pageX),
                 gameY = this.board.windowYToGameY(e.pageY);
@@ -149,10 +157,11 @@ define([
     };
 
     Game.prototype.gameMouseUp = function (e) {
-        console.log(this.dragging.entity);
         if (this.dragging.entity) {
+            console.log('mouseUp', this.dragging.entity);
             this.dragging.entity.canMove = this.dragging.couldMove;
         }
+        this.mightDrag = {};
         this.dragging = {};
     };
 
@@ -169,7 +178,7 @@ define([
                 if (self.wantsToFollowIt) {
                     self.tracking = entity;
                 }
-                console.log(entity);
+                self.board.showInfo(entity);
             });
         } else {
             if (this.followingClicks) {

@@ -1,5 +1,5 @@
 
-define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
+define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util, Behavior, Backbone) {
     'use strict';
     var defaultOptions = {
             facing : util.NorthRadians,//Radians, NORTH
@@ -20,18 +20,21 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
         id = 0,
         distanceTolerance = 0.01;
 
-    function Entity (game, options) {
-        this.game = game;
-        this.entityId = id++;
-        $.extend(true, this, defaultOptions, options || {});
-        _.extend(this, Backbone.Events);
-        this.initialMass = this.mass;
-        this.seed = this.game.random();
-        this.whatIPerceive = [];
-        this.on('eaten', function () {
-            this.remove();
-        });
-    }
+    var Entity = Backbone.Model.extend({
+        initialize : function (game, options) {
+            Entity.__super__.initialize.call(this, options);
+            this.game = game;
+            this.entityId = id++;
+            //this.set($.extend(true, {}, defaultOptions, options || {}));
+            $.extend(true, this, defaultOptions, options || {});
+            this.initialMass = this.mass;
+            this.seed = this.game.random();
+            this.whatIPerceive = [];
+            this.on('eaten', function () {
+                this.remove();
+            });
+        }
+    });
 
     Entity.prototype.remove = function () {
         this.game.removeEntity(this);
@@ -68,7 +71,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
             }
         }
         if (i == 50) {
-            console.log('theres a bug somewhere');
+            console.log('there\'s a bug somewhere');
         }
     };
 
@@ -316,6 +319,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
             $.extend(true, this, defaultOptions, opts || {});
             this.mass = this.density * ((2/3) * Math.TAU * Math.pow(this.radius, 3));
             Entity.Vegetable.apply(this, arguments);
+            this.set('species', 'Cabbage');
         }
 
         Cabbage.prototype = Object.create(Entity.Vegetable.prototype);
@@ -500,6 +504,7 @@ define(['jquery', 'game/util', 'game/behaviors'], function ($, util, Behavior) {
             $.extend(true, this, defaultOptions, opts || {});
             Entity.Animal.apply(this, arguments);
             this.speed.walking = 1;
+            this.set('species', 'Goat');
         }
 
         Goat.prototype = Object.create(Entity.Animal.prototype);

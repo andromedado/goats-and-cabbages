@@ -1,12 +1,19 @@
-
 .game-wrap {
-    height: 500px;
-    border: 1px solid #000;
-    position: relative; }
+  height: 500px;
+  border: 1px solid #000;
+  position: relative; }
 
 .info-wrap {
-    height: 10%; }
+  height: 10%; }
 
 .game-board {
-    position: absolute; }
+  position: absolute; }
 
+.entity-info {
+  position: fixed;
+  z-index: 2;
+  right: 10px;
+  top: 10px;
+  border-radius: 5px;
+  padding: 5px;
+  background-color: #FFF; }
