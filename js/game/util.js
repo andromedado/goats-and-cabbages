@@ -6,6 +6,8 @@ if (!window.requestAnimationFrame) {
 }
 
 Math.TAU = Math.TAU || Math.PI * 2;
+Math.ROOT2 = Math.ROOT2 || Math.pow(2, 0.5);//1.41421
+
 if (!Object.create) {
     Object.create = (function(){
         function F(){}

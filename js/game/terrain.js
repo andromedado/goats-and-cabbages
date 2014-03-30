@@ -1,7 +1,7 @@
 
 define([
     'jquery', 'game/util',
-    'game/tile', 'game/scratchPad'
+    'game/tiles/square', 'game/scratchPad'
 ], function ($, util, Tile, ScratchPad) {
     'use strict';
 
@@ -20,7 +20,7 @@ define([
         this.maxColorSaturation = 0.3;
         this.maxHue = 10;//red/orange
         this.minHue = 230;//blue
-        this.baseTileWidth = 0.2;//meters
+        this.baseTileWidth = 10;//meters
         this.maxElevation = 1500;//Mountain
         this.minElevation = -700;//Ocean
         this.maximumChangePerTile = this.maxElevation - this.minElevation;
@@ -37,7 +37,7 @@ define([
                 weightedSumElevation = 0,
                 netWeight = 0;
             _.each(tiles, function (tile) {
-                var weight = 2 - ((tile.getDistanceToCenter(position) / (tile.width * 1.41421)) * 2);
+                var weight = 2 - ((tile.getDistanceToCenter(position) / (tile.width * Math.ROOT2)) * 2);
                 netWeight += weight;
                 weightedSumElevation += weight * tile.elevation;
             });
@@ -158,6 +158,10 @@ define([
     };
 
     Terrain.prototype.draw = function () {
+        var ctx = this.game.board.getBackgroundContext(),
+            cBounds = this.game.board.getVisibleCanvasBounds();
+        ctx.clearRect(cBounds[0][0], cBounds[0][1], Math.abs(cBounds[1][0] - cBounds[0][0]), Math.abs(cBounds[1][1] - cBounds[0][1]));
+
         var tiles = this.getVisibleTiles();
         _.each(tiles, function (tile) {
             tile.draw();
