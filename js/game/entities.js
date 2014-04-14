@@ -25,11 +25,12 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             Entity.__super__.initialize.call(this, options);
             this.game = game;
             this.entityId = id++;
-            //this.set($.extend(true, {}, defaultOptions, options || {}));
-            $.extend(true, this, defaultOptions, options || {});
-            this.initialMass = this.mass;
-            this.seed = this.game.random();
-            this.whatIPerceive = [];
+            this.set($.extend(true, {}, defaultOptions, options || {}));
+            this.set({
+                seed : this.game.random(),
+                initialMass : this.get('mass'),
+                whatIPerceive : []
+            });
             this.on('eaten', function () {
                 this.remove();
             });
@@ -153,7 +154,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
                 return util.SouthRadians;
             } else {
                 //We're The Same!
-                return this.facing;
+                return this.get('facing');
             }
         }
     };
@@ -171,13 +172,13 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
     };
 
     Entity.prototype.faceThis = function (what) {
-        this.facing = this.getRadiansToFace(what);
+        this.set('facing', this.getRadiansToFace(what));
         this.concentrating = false;
     };
 
     Entity.prototype.isFacing = function (entity) {
         //console.log(this.getRadianOffset(entity));
-        return Math.abs(this.getRadianOffset(entity)) <= this.facingTolerance;
+        return Math.abs(this.getRadianOffset(entity)) <= this.get('facingTolerance');
     };
 
     Entity.prototype.getPointAtRadianAndDistance = function (radian, distance) {
@@ -200,7 +201,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
         } else {
             radiansToFace = otherEntity;
         }
-        return util.radiansDiff(radiansToFace, this.facing);
+        return util.radiansDiff(radiansToFace, this.get('facing'));
     };
 
     Entity.prototype.canSee = function (otherEntity) {
@@ -252,11 +253,11 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             ctx.strokeStyle = '#000';
             ctx.fillStyle = '#000';
             ctx.beginPath();
-            var fp = this.getPointAtRadianAndDistance(this.facing - (Math.TAU / 4), this.radius);
+            var fp = this.getPointAtRadianAndDistance(this.get('facing') - (Math.TAU / 4), this.radius);
             ctx.moveTo(board.gameXToCanvasX(fp[0]), board.gameYToCanvasY(fp[1]));
-            var bp = this.getPointAtRadianAndDistance(this.facing, this.radius * 4 / 3);
+            var bp = this.getPointAtRadianAndDistance(this.get('facing'), this.radius * 4 / 3);
             ctx.lineTo(board.gameXToCanvasX(bp[0]), board.gameYToCanvasY(bp[1]));
-            var sp = this.getPointAtRadianAndDistance(this.facing + (Math.TAU / 4), this.radius);
+            var sp = this.getPointAtRadianAndDistance(this.get('facing') + (Math.TAU / 4), this.radius);
             ctx.lineTo(board.gameXToCanvasX(sp[0]), board.gameYToCanvasY(sp[1]));
             ctx.fill();
             ctx.globalCompositeOperation = 'source-over';
@@ -364,10 +365,10 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
                     canvasX = board.gameXToCanvasX(this.position[0]),
                     canvasY = board.gameYToCanvasY(this.position[1]);
                 ctx.beginPath();
-                var p1 = this.getPointAtRadianAndDistance(this.facing + this.vision.peripheral, this.vision.distance);
+                var p1 = this.getPointAtRadianAndDistance(this.get('facing') + this.vision.peripheral, this.vision.distance);
                 ctx.moveTo(canvasX, canvasY);
-                var radian1 = -(this.facing - this.vision.peripheral) + Math.TAU;
-                var radian2 = -(this.facing + this.vision.peripheral) + Math.TAU;
+                var radian1 = -(this.get('facing') - this.vision.peripheral) + Math.TAU;
+                var radian2 = -(this.get('facing') + this.vision.peripheral) + Math.TAU;
                 ctx.arc(canvasX, canvasY, this.vision.distance * board.pixelsPerMeter, radian1, radian2, true);
                 ctx.closePath();
                 ctx.stroke();

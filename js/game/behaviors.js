@@ -32,10 +32,10 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
     Behavior.Backup = new Behavior(function (entity, dt) {
         var backupModifier = entity.speed.backupModifier || 0.5;
         var canTravelDistance = dt * entity.speed.walking * backupModifier;
-        entity.position = entity.getPointAtRadianAndDistance(util.invertRadians(entity.facing), canTravelDistance);
+        entity.set('position', entity.getPointAtRadianAndDistance(util.invertRadians(entity.get('facing')), canTravelDistance));
         _.each(entity.entitiesToStepAwayFrom, function (avoidEntity) {
             var radianPos = entity.getRadiansToFace(avoidEntity),
-                radialDiff = Math.abs(util.radiansDiff(radianPos, entity.facing));
+                radialDiff = Math.abs(util.radiansDiff(radianPos, entity.get('facing')));
             if (entity.canShove(avoidEntity)) {
                 if (radialDiff > Math.TAU / 4) {
                     //If you're not in front of me
@@ -53,11 +53,11 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         var diff = entity.getRadianOffset(entity.destinationEntity),
             canTurn = entity.speed.turning * dt;
         if (canTurn >= Math.abs(diff)) {
-            entity.facing = entity.getRadiansToFace(entity.destinationEntity);
+            entity.set('facing', entity.getRadiansToFace(entity.destinationEntity));
             entity.concentrating = false;
             return dt - (Math.abs(diff) / entity.speed.turning);
         }
-        entity.facing += canTurn * (diff < 0 ? -1 : 1);
+        entity.set('facing', entity.get('facing') + (canTurn * (diff < 0 ? -1 : 1)));
         return 0;
     });
 
@@ -69,11 +69,11 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         var diff = entity.getRadianOffset(entity.destinationEntity),
             canTurn = entity.speed.turning * dt / 2;
         if (canTurn >= Math.abs(diff)) {
-            entity.facing = entity.getRadiansToFace(entity.destinationEntity);
+            entity.set('facing', entity.getRadiansToFace(entity.destinationEntity));
             entity.concentrating = false;
             return dt - (Math.abs(diff) / (entity.speed.turning / 2));
         }
-        entity.facing += canTurn * (diff < 0 ? -1 : 1);
+        entity.set('facing', entity.get('facing') + (canTurn * (diff < 0 ? -1 : 1)));
         return 0;
     });
 
@@ -144,14 +144,14 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         }
         var destinationRadians;
         if (clockwise) {
-            destinationRadians = entity.facing - Math.TAU / 4;
+            destinationRadians = entity.get('facing') - Math.TAU / 4;
         } else {
-            destinationRadians = entity.facing + Math.TAU / 4;
+            destinationRadians = entity.get('facing') + Math.TAU / 4;
         }
         entity.destinationEntity = entity.getPointAtRadianAndDistance(destinationRadians, entity.radius * 5);
         Behavior.HalfSpeedTurn.do(entity, dt);
         var canTravelDistance = dt * entity.speed.walking;
-        entity.destinationEntity = entity.getPointAtRadianAndDistance(entity.facing, canTravelDistance * 2 + entity.radius);
+        entity.destinationEntity = entity.getPointAtRadianAndDistance(entity.get('facing'), canTravelDistance * 2 + entity.radius);
         Behavior.Approach.do(entity, dt);
         return 0;
     });
