@@ -1,5 +1,5 @@
 
-define(['jquery', 'underscore', 'templates'], function ($, _, templates) {
+define(['jquery', 'underscore', 'templates', 'backbone'], function ($, _, templates, Backbone) {
     'use strict';
     var EntityInfo;
 

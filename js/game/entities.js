@@ -1,6 +1,7 @@
 
 define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util, Behavior, Backbone) {
     'use strict';
+    var deMinimisMass = 0.001;
     var defaultOptions = {
             facing : util.NorthRadians,//Radians, NORTH
             facingTolerance : Math.TAU / 1000,
@@ -15,7 +16,8 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             vision : {
                 distance : 10,//Meters
                 peripheral : Math.TAU / 5//TAU/8 Radians :: 45degrees, so we have a field of vision 90 degrees wide
-            }
+            },
+            concentrating : false
         },
         id = 0,
         distanceTolerance = 0.01;
@@ -34,8 +36,54 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             this.on('eaten', function () {
                 this.remove();
             });
+        },
+        get : function (what) {
+            var val = Backbone.Model.prototype.get.apply(this, arguments);
+            if (val === void 0 && what && what.indexOf('.') > -1) {
+                val = this.toJSON();
+                _.each(what.split('.'), function (bit) {
+                    val = val && val[bit];
+                });
+            }
+            return val;
         }
     });
+
+    Entity.prototype.consume = function (mass, sourceEntity) {
+        this.attributes.mass += mass;
+        sourceEntity.beConsumed(mass, this);
+    };
+
+    Entity.prototype.beConsumed = function (mass, consumer) {
+        this.set('mass', this.get('mass') - mass);
+        if (this.get('mass') < deMinimisMass) {
+            this.trigger('eaten', {by : consumer});
+        }
+    };
+
+    Entity.prototype.setDestination = function (toWhat) {
+        this.set('destinationEntity', toWhat);
+    };
+
+    Entity.prototype.getDestination = function () {
+        return this.get('destinationEntity');
+    };
+
+    Entity.prototype.getEntitiesToStepAwayFrom = function () {
+        return this.get('entitiesToStepAwayFrom') || [];
+    };
+
+    Entity.prototype.interrupt = function () {
+        this.set('concentrating', false);
+    };
+
+    Entity.prototype.isConcentrating = function () {
+        return this.get('concentrating');
+    };
+
+    Entity.prototype.canWalk = function () {
+        return this.get('speed.walking') > 0;
+    };
 
     Entity.prototype.remove = function () {
         this.game.removeEntity(this);
@@ -233,6 +281,10 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
         return this.getInnerDistance(entity) < (-2/5) * this.radius;
     };
 
+    Entity.prototype.setPosition = function (x, y) {
+        this.set('position', [x, y]);
+    };
+
     Entity.prototype.draw = function (board) {
         var ctx = board.getEntityContext();
         ctx.beginPath();
@@ -295,7 +347,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
     Entity.Vegetable = (function () {
         function Vegetable() {
             Entity.apply(this, arguments);
-            this.speed.walking = 0;
+            this.attributes.speed.walking = 0;
         }
 
         Vegetable.prototype = Object.create(Entity.prototype);
@@ -341,11 +393,16 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             Entity.apply(this, arguments);
             $.extend(true, this, defaultOptions, opts || {});
             this.load();
-            this.speed.walking = 1.7;
+            this.attributes.speed.walking = 1.7;
         }
 
         Animal.prototype = Object.create(Entity.prototype);
         Animal.prototype.constructor = Animal;
+
+        Animal.prototype.consume = function (mass, sourceEntity) {
+            Entity.prototype.consume.apply(this, arguments);
+            this.set('foodInStomach', this.get('foodInStomach') + mass);
+        };
 
         Animal.prototype.canShove = function (entity) {
             return true;
@@ -427,7 +484,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             if (this.concentrating && this.currentBehavior != Behavior.Panic) {
                 return this.currentBehavior;
             }
-            this.destinationEntity = null;
+            this.setDestination(null);
             this.panicReason = '';
             //Priorities:
             //Eating
@@ -448,8 +505,8 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
                 self.stopListening(food);
             });
             //food.highlighted = true;
-            if (this.destinationEntity != food) {
-                this.destinationEntity = food;
+            if (this.getDestination() != food) {
+                this.setDestination(food);
                 this.listenTo(food, 'interrupt', function () {
                     self.concentrating = false;
                 });
@@ -504,7 +561,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
         function Goat (game, opts) {
             $.extend(true, this, defaultOptions, opts || {});
             Entity.Animal.apply(this, arguments);
-            this.speed.walking = 1;
+            this.attributes.speed.walking = 1;
             this.set('species', 'Goat');
         }
 

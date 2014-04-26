@@ -24,11 +24,11 @@ define([
                 var now = Date.now();
 
                 if (self.going) {
-                    try {
+                    //try {
                         self.update((now - lastTime) / 1000.0);
-                    } catch (e) {
-                        debugger;
-                    }
+                    //} catch (e) {
+                    //    debugger;
+                    //}
                     if (self.tracking) {
                         self.board.center = self.tracking.position.slice();
                     }
