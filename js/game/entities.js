@@ -49,6 +49,45 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
         }
     });
 
+    Entity.prototype.getInfo = function () {
+        var data = this.toJSON();
+        data.displayInfo = this.getDisplayInfo();
+        return data;
+    };
+
+    Entity.prototype.getDisplayInfo = function () {
+        var self = this;
+        var displayInfo = {
+            keyValuePairs : {}
+        };
+        _.each(this.getInterestingBoolFns(), function (fn) {
+            var val = self[fn]();
+            val = util.prettify(val);
+            displayInfo.keyValuePairs[fn] = val;
+        });
+        _.each(this.getInterestingPropertyNames(), function (prop) {
+            var val = self[prop];
+            val = util.prettify(val);
+            displayInfo.keyValuePairs[prop] = val;
+        });
+        return displayInfo;
+    };
+
+    Entity.prototype.getInterestingPropertyNames = function () {
+        return [
+            'canMove',
+            'position'
+        ];
+    };
+
+    Entity.prototype.getInterestingBoolFns = function () {
+        return [
+            'getBehavior',
+            'isConcentrating',
+            'canWalk'
+        ];
+    };
+
     Entity.prototype.consume = function (mass, sourceEntity) {
         this.attributes.mass += mass;
         sourceEntity.beConsumed(mass, this);
@@ -95,7 +134,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
     };
 
     Entity.prototype.getPosition = function () {
-        return this.position;
+        return this.get('position');
     };
 
     /**
@@ -151,14 +190,14 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
         if (point instanceof Entity) {
             point = point.position;
         }
-        return  point[0] - this.position[0];
+        return  point[0] - this.get('position')[0];
     };
 
     Entity.prototype.getYDiff = function (point) {
         if (point instanceof Entity) {
             point = point.position;
         }
-        return  point[1] - this.position[1];
+        return  point[1] - this.get('position')[1];
     };
 
     /**
@@ -233,7 +272,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
         var x, y;
         x = distance * Math.cos(radian);
         y = distance * Math.sin(radian);
-        return [this.position[0] + x, this.position[1] + y];
+        return [this.get('position')[0] + x, this.get('position')[1] + y];
     };
 
     /**
@@ -288,7 +327,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
     Entity.prototype.draw = function (board) {
         var ctx = board.getEntityContext();
         ctx.beginPath();
-        ctx.arc(board.gameXToCanvasX(this.position[0]), board.gameYToCanvasY(this.position[1]), this.radius * board.pixelsPerMeter, 0, Math.TAU, true);
+        ctx.arc(board.gameXToCanvasX(this.get('position')[0]), board.gameYToCanvasY(this.get('position')[1]), this.radius * board.pixelsPerMeter, 0, Math.TAU, true);
         if (this.borderColor) {
             ctx.strokeStyle = this.borderColor;
             ctx.stroke();
@@ -320,14 +359,14 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
                 //Taller image
                 height = (this.radius * 2) * board.pixelsPerMeter;
                 width = height / this.widthToHeight;
-                y = board.gameYToCanvasY(this.position[1] + this.radius);
-                x = board.gameXToCanvasX(this.position[0] - (this.radius / this.widthToHeight));
+                y = board.gameYToCanvasY(this.get('position')[1] + this.radius);
+                x = board.gameXToCanvasX(this.get('position')[0] - (this.radius / this.widthToHeight));
             } else {
                 //Wider Image
                 width = (this.radius * 2) * board.pixelsPerMeter;
                 height = width * this.widthToHeight;
-                x = board.gameXToCanvasX(this.position[0] - this.radius);
-                y = board.gameYToCanvasY(this.position[1] + (this.radius / this.widthToHeight));
+                x = board.gameXToCanvasX(this.get('position')[0] - this.radius);
+                y = board.gameYToCanvasY(this.get('position')[1] + (this.radius / this.widthToHeight));
             }
             ctx.drawImage(this.image, x, y, width, height);
         }
@@ -336,7 +375,7 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             ctx.strokeStyle = '#000';
             ctx.fillStyle = '#FF0';
             ctx.beginPath();
-            ctx.arc(board.gameXToCanvasX(this.position[0]), board.gameYToCanvasY(this.position[1]), this.radius * board.pixelsPerMeter * 2, 0, Math.TAU, true);
+            ctx.arc(board.gameXToCanvasX(this.get('position')[0]), board.gameYToCanvasY(this.get('position')[1]), this.radius * board.pixelsPerMeter * 2, 0, Math.TAU, true);
             ctx.stroke();
             ctx.fill();
             ctx.closePath();
@@ -419,8 +458,8 @@ define(['jquery', 'game/util', 'game/behaviors', 'backbone'], function ($, util,
             Entity.prototype.draw.apply(this, arguments);
             if (this.game.debug) {
                 var ctx = board.getEntityContext(),
-                    canvasX = board.gameXToCanvasX(this.position[0]),
-                    canvasY = board.gameYToCanvasY(this.position[1]);
+                    canvasX = board.gameXToCanvasX(this.get('position')[0]),
+                    canvasY = board.gameYToCanvasY(this.get('position')[1]);
                 ctx.beginPath();
                 var p1 = this.getPointAtRadianAndDistance(this.get('facing') + this.vision.peripheral, this.vision.distance);
                 ctx.moveTo(canvasX, canvasY);

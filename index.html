@@ -27,6 +27,11 @@
 <script type="text/template" class="template" id="entity-info">
     <div class="entity-info">
         <h2>Entity: <%= data.species %></h2>
+        <ul>
+        <% _.each(data.displayInfo.keyValuePairs, function (value, key) {
+        %><li><span class="label"><%= key %>:</span> <%= value %></li><%
+        }); %>
+        </ul>
     </div>
 </script>
 </body>

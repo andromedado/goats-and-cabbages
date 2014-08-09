@@ -27,6 +27,14 @@ define({
     NorthRadians : Math.TAU / 4,
     SouthRadians : Math.TAU * 3 / 4,
     WestRadians : Math.TAU / 2,
+    prettify : function (val) {
+        if (typeof val === 'boolean') {
+            val = val ? 'Yes' : 'No';
+        } else if (val && val.toString) {
+            val = val.toString();
+        }
+        return val;
+    },
     proportion : function (a1, min1, max1, min2, max2) {
         return (((a1 - min1) / (max1 - min1)) * (max2 - min2)) + min2;
     },

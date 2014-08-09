@@ -63,6 +63,9 @@ define([
         this.entities = [];
         this.dragging = {};
         this.mightDrag = {};
+        this.underMouseDown = {
+            entities : []
+        };
         this.$topCanvas = $(this.board.getTopCanvas());
         this.$topCanvas.on('click', function (e) {
             self.gameClick(e);
@@ -116,21 +119,34 @@ define([
     };
 
     Game.prototype.gameMouseDown = function (e) {
-        var gameX = this.board.windowXToGameX(e.pageX),
-            gameY = this.board.windowYToGameY(e.pageY);
+        var gameX = this.board.windowXToGameX(e.pageX);
+        var gameY = this.board.windowYToGameY(e.pageY);
+        var entity = this.getEntitiesAtPoint([gameX, gameY])[0];
         this.mightDrag = {
-            entity : this.getEntitiesAtPoint([gameX, gameY])[0]
+            entity : entity
         };
         this.dragging = {
             entity : void 0
         };
-        if (this.mightDrag.entity) {
-            this.mightDrag.couldMove = this.mightDrag.entity.canMove;
-            this.mightDrag.entity.canMove = false;
-            this.mightDrag.offset = [gameX - this.mightDrag.entity.position[0], gameY - this.mightDrag.entity.position[1]];
+        if (entity) {
+            this.releaseMouseDowns();
+            this.addMouseDownToEntity(entity);
+            this.mightDrag.offset = [gameX - this.mightDrag.entity.getPosition()[0], gameY - this.mightDrag.entity.getPosition()[1]];
         } else {
             this.dragging.offset = [gameX, gameY];
         }
+    };
+
+    Game.prototype.addMouseDownToEntity = function (entity) {
+        entity.set('underMouseDown', true);
+        this.underMouseDown.entities.push(entity);
+    };
+
+    Game.prototype.releaseMouseDowns = function () {
+        _.each(this.underMouseDown.entities, function (entity) {
+            entity.set('underMouseDown', false);
+        });
+        this.underMouseDown.entities = [];
     };
 
     Game.prototype.mouseMove = function (e) {
@@ -145,7 +161,7 @@ define([
             var gameX = this.board.windowXToGameX(e.pageX),
                 gameY = this.board.windowYToGameY(e.pageY);
             if (this.dragging.entity) {
-                this.dragging.entity.position = [gameX - this.dragging.offset[0], gameY - this.dragging.offset[1]];
+                this.dragging.entity.setPosition(gameX - this.dragging.offset[0], gameY - this.dragging.offset[1]);
                 this.dragging.entity.trigger('interrupt');
             } else {
                 //Dragging the whole board
@@ -157,10 +173,7 @@ define([
     };
 
     Game.prototype.gameMouseUp = function (e) {
-        if (this.dragging.entity) {
-            console.log('mouseUp', this.dragging.entity);
-            this.dragging.entity.canMove = this.dragging.couldMove;
-        }
+        this.releaseMouseDowns();
         this.mightDrag = {};
         this.dragging = {};
     };

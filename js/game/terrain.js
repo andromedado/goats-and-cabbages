@@ -1,7 +1,7 @@
 
 define([
     'jquery', 'game/util',
-    'game/tiles/square', 'game/scratchPad'
+    'game/tiles/fishScale', 'game/scratchPad'
 ], function ($, util, Tile, ScratchPad) {
     'use strict';
 

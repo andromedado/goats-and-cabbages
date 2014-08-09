@@ -11,7 +11,7 @@ define(['jquery', 'underscore', 'templates', 'backbone'], function ($, _, templa
             _.extend(this, options);
         },
         render : function () {
-            this.$el.html(this.template(this.model.toJSON()));
+            this.$el.html(this.template(this.model.getInfo()));
             return this;
         }
     });

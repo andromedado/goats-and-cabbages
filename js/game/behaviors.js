@@ -7,12 +7,17 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         console.log('I\'m PANICING!!', me);
     }, 1000);
 
-    function Behavior (doFn) {
+    function Behavior (name, doFn) {
+        this.name = name;
         this._doFn = doFn;
     }
 
     Behavior.prototype['do'] = function (entity, dt) {
         this._doFn(entity, dt);
+    };
+
+    Behavior.prototype.toString = function () {
+        return this.name = '';
     };
 
     function doAllOfThese (self, dt, behavior/*[, behavior...]*/) {
@@ -25,11 +30,11 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         return leftover;
     }
 
-    Behavior.Wait = new Behavior(function (entity, dt) {
+    Behavior.Wait = new Behavior('Wait', function (entity, dt) {
         return 0;//Eat up all time and do nothing
     });
 
-    Behavior.Backup = new Behavior(function (entity, dt) {
+    Behavior.Backup = new Behavior('Backup', function (entity, dt) {
         var backupModifier = entity.speed.backupModifier || 0.5;
         var canTravelDistance = dt * entity.get('speed.walking') * backupModifier;
         entity.set('position', entity.getPointAtRadianAndDistance(util.invertRadians(entity.get('facing')), canTravelDistance));
@@ -49,7 +54,7 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         return 0;
     });
 
-    Behavior.Turn = new Behavior(function turn (entity, dt) {
+    Behavior.Turn = new Behavior('Turn', function turn (entity, dt) {
         var diff = entity.getRadianOffset(entity.getDestination()),
             canTurn = entity.get('speed.turning') * dt;
         if (canTurn >= Math.abs(diff)) {
@@ -61,11 +66,11 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         return 0;
     });
 
-    Behavior.TurnAndBackup = new Behavior(function turnAndBackup (entity, dt) {
+    Behavior.TurnAndBackup = new Behavior('TurnAndBackup', function turnAndBackup (entity, dt) {
         return doAllOfThese(entity, dt, Behavior.Backup, Behavior.Turn);
     });
 
-    Behavior.HalfSpeedTurn = new Behavior(function halfSpeedTurn (entity, dt) {
+    Behavior.HalfSpeedTurn = new Behavior('HalfSpeedTurn', function halfSpeedTurn (entity, dt) {
         var diff = entity.getRadianOffset(entity.getDestination()),
             canTurn = entity.get('speed.turning') * dt / 2;
         if (canTurn >= Math.abs(diff)) {
@@ -77,11 +82,11 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         return 0;
     });
 
-    Behavior.TurnAndApproach = new Behavior(function turnAndApproach(entity, dt) {
+    Behavior.TurnAndApproach = new Behavior('TurnAndApproach', function turnAndApproach(entity, dt) {
         return doAllOfThese(entity, dt, Behavior.Turn, Behavior.Approach);
     });
 
-    Behavior.Approach = new Behavior(function approach (entity, dt) {
+    Behavior.Approach = new Behavior('Approach', function approach (entity, dt) {
         if (!entity.canWalk()) {
             throw {msg : 'invalid walking speed!', what : entity};
         }
@@ -96,17 +101,17 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         if (canTravelDistance >= Math.abs(touchDistance)) {
             x = touchDistance * (Math.cos(rads));
             y = touchDistance * (Math.sin(rads));
-            entity.setPosition(x + entity.position[0], y + entity.position[1]);
+            entity.setPosition(x + entity.getPosition()[0], y + entity.getPosition()[1]);
             entity.interrupt();
             return dt - (Math.abs(touchDistance) / entity.get('speed.walking'));
         }
         x = canTravelDistance * (Math.cos(rads));
         y = canTravelDistance * (Math.sin(rads));
-        entity.setPosition(x + entity.position[0], y + entity.position[1]);
+        entity.setPosition(x + entity.getPosition()[0], y + entity.getPosition()[1]);
         return 0;
     });
 
-    Behavior.EatNearestEdible = new Behavior(function eatNearestEdible (entity, dt) {
+    Behavior.EatNearestEdible = new Behavior('EatNearestEdible', function eatNearestEdible (entity, dt) {
         var canEat = dt * entity.get('eatsKgPerSecond');
         var prey = entity.getDestination();
         if (canEat >= prey.mass) {
@@ -118,7 +123,7 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
         return 0;
     });
 
-    Behavior.Panic = new Behavior(function (entity, dt) {
+    Behavior.Panic = new Behavior('Panic', function (entity, dt) {
         //Panic!!
         announcePanic(entity);
         return 0;
@@ -126,7 +131,7 @@ define(['jquery', 'underscore', 'game/util'], function ($, _, util) {
 
     Behavior.Search = {};
 
-    Behavior.Search.ForFood = new Behavior(function forFood (entity, dt) {
+    Behavior.Search.ForFood = new Behavior('ForFood', function forFood (entity, dt) {
         var clockwise;
 
         clockwise = entity.behaviorSeed > 0.5;
